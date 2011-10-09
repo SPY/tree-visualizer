@@ -1,4 +1,4 @@
-(function(window){
+(function(window, Raphael){
     var MAX_HEIGHT = 30,
         MAX_WIDTH = 200,
         BORDER_RADIUS = 5,
@@ -70,11 +70,10 @@
         }
     }
     
-    function drawNode(x, y, width, height, node){
-        var paper = this.paper,
-            st = paper.set(),
-            rect = paper.rect(x, y, width, height, BORDER_RADIUS),
-            text = paper.text(x + width/2, y + height/2 - FONT_SIZE/2, node.title);
+    Raphael.fn.node = function(x, y, width, height, text){
+        var st = this.set(),
+            rect = this.rect(x, y, width, height, BORDER_RADIUS),
+            text = this.text(x + width/2, y + height/2 - FONT_SIZE/2, text);
         st.push(rect, text);
         rect.attr({
             'stroke': '#3f72bf',
@@ -84,21 +83,85 @@
         return st;
     }
     
-    function drawSources(){
+    Raphael.fn.edge = function(from, to, count){
+        var fromBBox = from.getBBox(),
+            toBBox = to.getBBox(),
+            path = {
+                from: {
+                    x: fromBBox.x + fromBBox.width/2,
+                    y: fromBBox.y + fromBBox.height/2
+                },
+                to: {
+                    x: toBBox.x + toBBox.width/2,
+                    y: toBBox.y + toBBox.height/2
+                }
+            },
+            xDiff = fromBBox.x - toBBox.x,
+            yDiff = fromBBox.y - toBBox.y;
+        if ( Math.abs(xDiff) > Math.max(fromBBox.width, toBBox.width) ) {
+            path.from.x = xDiff < 0 ? fromBBox.x + fromBBox.width : fromBBox.x;
+            path.to.x   = xDiff < 0 ? toBBox.x : toBBox.x  + toBBox.width;
+        }
+        else {
+            path.from.y = path.from.y < path.to.y ? fromBBox.y + fromBBox.height : fromBBox.y;
+            path.to.y   = path.from.y < path.to.y ? toBBox.y : toBBox.y  + toBBox.height;
+        }
+        var pathStr = Raphael.fullfill("M{from.x},{from.y}L{to.x},{to.y}", path);
+        return this.path(pathStr);
+    }
+    
+    function drawSources(height){
         var sources = this.data.sources,
             sl = sources.length,
-            x = y = 5,
+            x = y = PADDING,
             paper = this.paper,
-            height = MAX_HEIGHT <= paper.height/sl ? MAX_HEIGHT : paper.height/sl,
             width = Math.max(MAX_WIDTH);
         for (var i = 0; i < sl; i++) {
-            drawNode.call(this, x, y, width, height, sources[i]);
-            y += height + PADDING;
+            sources[i].el = paper.node(x, y, width, height, sources[i].title);
+            y += height + PADDING*2;
+        }
+    }
+    
+    function drawNodes(height){
+        var nodes = this.data.nodes,
+            nl = nodes.length,
+            x = MAX_WIDTH + 100,
+            y = PADDING,
+            paper = this.paper,
+            width = Math.max(MAX_WIDTH);
+        for (var i = 0; i < nl; i++) {
+            nodes[i].el = paper.node(x, y, width, height, nodes[i].url);
+            y += height + PADDING*2;
+        }
+    }
+    
+    function drawEdges(){
+        var paper = this.paper,
+            nodes = this.data.allNodes;
+        for ( var nodeId in nodes ) {
+            var node = nodes[nodeId];
+            for ( var id in node.output ) {
+                if ( node.output.hasOwnProperty(id) ) {
+                    var edge = paper.edge(node.el, node.output[id].node.el, node.output[id].weight);
+                    edge.attr({
+                        'stroke' : '#f00',
+                        'stroke-width': 2,
+                        'arrow-end': 'classic-midium-long'
+                    });
+                }
+            }
         }
     }
     
     vis.prototype.draw = function(){
+        this.paper.clear();
+        var nodes = this.data.allNodes;
+        for ( var nodeId in nodes ) {
+            delete nodes[nodeId].el;
+        }
         // draw sources
-        drawSources.call(this);
+        drawSources.call(this, MAX_HEIGHT);
+        drawNodes.call(this, MAX_HEIGHT);
+        drawEdges.call(this);
     }
-})(this);
+})(this, Raphael);
