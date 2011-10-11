@@ -140,7 +140,7 @@
         el.attr({
             'stroke-width': weight,
             'stroke': color,
-            'arrow-end': 'classic-midium-long'
+            'arrow-end': 'classic'
         });
         return el;
     }
@@ -157,7 +157,7 @@
                 maxWidth = width;
             }
         }
-        var yDiff = Math.max(PADDING, ~~paper.height/sl);
+        var yDiff = Math.max(PADDING, ~~(paper.height - height - 2*PADDING)/(sl - 1));
         for ( var i = 0; i < sl; i++ ) {
             var width = Math.min(MAX_WIDTH, sources[i].title.length*(FONT_SIZE/2+1) + FONT_SIZE);
             sources[i].el = paper.node(x + (maxWidth - width)/2, y, width, height, sources[i].title);
@@ -201,21 +201,20 @@
         var nodes = this.data.nodes,
             nl = nodes.length,
             x = MAX_WIDTH,
-            y = PADDING,
             paper = this.paper,
             maxWidth = 0,
-            tree = buildTree(nodes);
-        for ( var i = 0; i < nl; i++ ) {
-            var width = nodes[i].width = Math.min(MAX_WIDTH, nodes[i].url.length*FONT_SIZE/2 + FONT_SIZE);
-            if ( width > maxWidth ) {
-                maxWidth = width;
-            }
-        }
+            tree = buildTree(nodes),
+            yDiff = tree.length ? Math.max(height, (paper.height - height)/(tree[tree.length - 1].length - 1) - PADDING) : height + PADDING*2;
         for( var i = 0, l = tree.length; i < l; i++ ) {
             var slice = tree[i],
                 sl = slice.length,
-                yDiff = height + PADDING*6,
-                y = (paper.height - yDiff*sl)/2;
+                y = (paper.height - yDiff*(sl - 1) - height - PADDING)/2 + PADDING;
+            for ( var j = 0; j < sl; j++ ) {
+                var width = slice[j].width = Math.min(MAX_WIDTH, slice[j].url.length*FONT_SIZE/2 + FONT_SIZE);
+                if ( width > maxWidth ) {
+                    maxWidth = width;
+                }
+            }
             for( var j = 0; j < sl; j++ ) {
                 slice[j].el = paper.node(x + (maxWidth - slice[j].width)/2, y, slice[j].width, height, slice[j].url);
                 y += yDiff;
