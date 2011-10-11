@@ -28,13 +28,13 @@
             sources = this.data.sources,
             nodes = this.data.nodes,
             allNodes = this.data.allNodes = {};
-        for ( var i = 0, sl = sources.length; i < sl; i++) {
+        for ( var i = 0, sl = sources.length; i < sl; i++ ) {
             var id = sources[i].id;
             allNodes[id] = sources[i];
             sources[i].count = 0;
             sources[i].output = {};
-            for (var ii = 0, el = edges.length; ii < el; ii++) {
-                if (edges[ii].from == id) {
+            for ( var ii = 0, el = edges.length; ii < el; ii++ ) {
+                if ( edges[ii].from == id ) {
                     sources[i].count += edges[ii].count;
                     sources[i].output[edges[ii].to] = {
                         node: null,
@@ -165,24 +165,62 @@
         }
     }
     
+    function getTreeDepth(count){
+        return count >= 0 ? Math.ceil((Math.sqrt(1 + 8*count) - 1)/2) : 0;
+    }
+    
+    function getKeysCount(hash) {
+        var count = 0;
+        for ( var k in hash ) {
+            if ( hash.hasOwnProperty(k) ) {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    function buildTree(nodes){
+        var tree = [],
+            nodes = nodes.slice(0),
+            depth = getTreeDepth(nodes.length);
+        nodes.sort(function(node1, node2){
+            var keysCount1 = getKeysCount(node1.input),
+                keysCount2 = getKeysCount(node2.input);
+            if ( keysCount1 != keysCount2 ) {
+                return keysCount2 - keysCount1;
+            }
+            return node2.inCount - node1.inCount;
+        });
+        for ( var i = 1; i <= depth; i++ ) {
+            tree.push(nodes.splice(0, i));
+        }
+        return tree;
+    }
+    
     function drawNodes(height){
         var nodes = this.data.nodes,
             nl = nodes.length,
-            x = MAX_WIDTH + 100,
+            x = MAX_WIDTH,
             y = PADDING,
             paper = this.paper,
-            maxWidth = 0;;
+            maxWidth = 0,
+            tree = buildTree(nodes);
         for ( var i = 0; i < nl; i++ ) {
-            var width = Math.min(MAX_WIDTH, nodes[i].url.length*FONT_SIZE/2 + FONT_SIZE);
+            var width = nodes[i].width = Math.min(MAX_WIDTH, nodes[i].url.length*FONT_SIZE/2 + FONT_SIZE);
             if ( width > maxWidth ) {
                 maxWidth = width;
             }
         }
-        var yDiff = Math.max(PADDING, ~~paper.height/nl);
-        for ( var i = 0; i < nl; i++ ) {
-            var width = Math.min(MAX_WIDTH, nodes[i].url.length*FONT_SIZE/2 + FONT_SIZE);
-            nodes[i].el = paper.node(x + (maxWidth - width)/2, y, width, height, nodes[i].url);
-            y += yDiff;
+        for( var i = 0, l = tree.length; i < l; i++ ) {
+            var slice = tree[i],
+                sl = slice.length,
+                yDiff = height + PADDING*6,
+                y = (paper.height - yDiff*sl)/2;
+            for( var j = 0; j < sl; j++ ) {
+                slice[j].el = paper.node(x + (maxWidth - slice[j].width)/2, y, slice[j].width, height, slice[j].url);
+                y += yDiff;
+            }
+            x += maxWidth;
         }
     }
     
